@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
+use std::arch::x86_64::_rdtsc;
 
+//questions
+//1. use of PCB to store information of previous task before is was prempted
 
 /// Priority enum - higher numeric values mean higher priority level of a task
 enum Priority{
@@ -10,10 +13,11 @@ enum Priority{
 }
 
 enum ThreadState {
-    Inactive, 
+    New,
+    Ready,
     Running,
-    Idle,
-    Expired,
+    Waiting,
+    Terminated
 }
 
 /// @Todo - define budget/system time
@@ -21,7 +25,34 @@ struct Capability {
     budget : Arc<Mutex<u32>>,
     init_priority : Priority,
     modified_priority : Priority,
-    timer : Timer,
+    timer : Timer, 
+}
+
+//NEED FOR CONTEXT SWITCHING when preemption and going back happens
+struct ProcessControlBlock {
+
+}
+
+struct Cycle {
+
+}
+
+pub fn read_tsc() -> u64 {
+        unsafe { _rdtsc() }
+    }
+
+
+// A Scheduling Context (SC) is a data structure 
+//that holds the metadata required to manage a thread's execution on the CPU.
+
+struct SchedulingContext{
+    budget : Arc<Mutex<u64>>,
+    period : u64,
+    attached_thread_id : Option<u8>, //is there id for threads?
+
+    init_priority : Priority, //initial priority for the first work
+    modified_priority : Priority, //changed priority when pre-empted
+
 }
 
 
@@ -62,12 +93,7 @@ struct ThreadScheduler {
 ///
 ///# Returns
 ///
-struct SchedulingContextObject{
-    period : Time,
-    cap : Capability, //capability possess budget field
-    task : Task,
 
-}
 
 struct Task {
     isDone : bool,
