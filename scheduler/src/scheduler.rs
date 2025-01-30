@@ -4,12 +4,15 @@
 //Purpose : Defines object structs needed to implement thread-level scheduling based on Tcap and scCap paper
 
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, Instant};
+use std::collections::BinaryHeap;
+use std::cmp::Reverse;
 
 const DEADLINE_SUCCESS : usize = 0;
 const DEADLINE_MISS: usize = 1;
-const MAX_TASKS : usize = 8;
-
+const MAX_TASKS : usize = 8; // can be changed
+const INIT_BUDGET : usize = 10;  // can be changed
+static mut running_task_id : Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
 
 
 //Priority enum that is assigned to Capability struct,
@@ -37,6 +40,7 @@ enum ThreadState {
 
 
 //Capability struct that includes 3 descriptors : budget, priority, timer
+//Capability provides the temporal capability to a task
 struct Capability {
     budget : u32
     priority : Priority,
@@ -60,6 +64,45 @@ struct Thread {
     scheduler : ThreadScheduler,
 }
 
+#[derive(Eq, PartialEq)]
+struct Task {
+    execution_time: Instant,
+    priority : Priority,
+    task_id: u8,
+}
+
+impl Task {
+    pub fn new(execution_time : usize) -> Self{
+        Self {
+            execution_time : execution_time,
+            task_id : running_task_id,
+        }
+        let mut counter = running_task_id.lock().unwrap();
+        *counter += 1;
+
+    }
+
+    // pub fn run(&self) {
+    //     let mut sum = 0;
+    //     for tick in iter {
+    //         sum += 1;
+    //     }
+    // }
+} 
+
+impl Ord for Task {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.execution_time.cmp(&other.execution_time)
+    }
+}
+
+impl PartialOrd for Task {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+
 impl Capability {
     pub fn new(budget : u32, priority : Priority, timer : Timer) -> Self {
         Self {
@@ -75,13 +118,14 @@ impl ThreadScheduler {
         Self {
             policy, 
             timer,
-            task_list : Vec::with_capacity(MAX_TASKS),
+            // task_list : Vec::with_capacity(MAX_TASKS),
+            task_list : BinaryHeap<Reverse<T>>,
         }
     }
 
      //replenish budget of a Capability with a fixed amount
-     pub fn replenish_budget(&self){
-        capability.budget = 10 //for now use 10 as a default budget for replenishment
+    pub fn replenish_budget(&self){
+        capability.budget = INIT_BUDGET; //for now use 10 as a default budget for replenishment
          
     }
 
@@ -104,7 +148,7 @@ impl ThreadScheduler {
     }
 
    
-    pub fn is_budget_exceeded_before_deadline(&self) -> bool {
+    pub fn is_budget_exceeded(&self) -> bool {
 
     }
 
@@ -113,9 +157,9 @@ impl ThreadScheduler {
 
     }
 
-    pub fn is_budget_left(&self) -> bool {
+    // pub fn is_budget_left(&self) -> bool {
 
-    }
+    // }
     
 
     pub fn borrow_budget(&self, other_capability: &mut Capability) {
@@ -130,6 +174,7 @@ impl ThreadScheduler {
     
 
 }
+
 
 
 //few reminders :
