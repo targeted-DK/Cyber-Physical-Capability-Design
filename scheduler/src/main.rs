@@ -5,13 +5,15 @@
 
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, Instant};
-
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
 const DEADLINE_SUCCESS : usize = 0;
 const DEADLINE_MISS: usize = 1;
 const MAX_TASKS : usize = 8; // can be changed
 const INIT_BUDGET : usize = 10;  // can be changed
-// static ref RUNNING_TASK_ID: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
+static TASK_ID_COUNTER: AtomicU8 = AtomicU8::new(0);
+
+
 
 // Arc::new(Mutex::new(Stats));
 
@@ -76,11 +78,12 @@ struct Task {
 impl Task {
     pub fn new(execution_time : u8, priority : Priority) -> Self {
         Self {
-            execution_time : execution_time,
-            task_id : 0,
-            priority : priority,
+            execution_time,
+            task_id : TASK_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
+            priority,
         }
         // let mut counter = RUNNING_TASK_ID.lock().unwrap();
+
         // *counter += 1;
 
     }
@@ -153,6 +156,16 @@ impl ThreadScheduler {
                 .then_with(|| a.execution_time.cmp(&b.execution_time)) 
         });
     }
+
+    pub fn run(&self) {
+
+        for task in &self.task_list {
+            println!("Running task number : {}", task.task_id);
+            println!("Running time : {}", task.execution_time);
+            println!("Priority : {:?}", task.priority);
+
+        }
+    }
     
 
      //replenish budget of a Capability with a fixed amount
@@ -210,11 +223,13 @@ impl ThreadScheduler {
 
 fn main() {
 
-    let thread_sched : ThreadScheduler = ThreadScheduler::new(Policy::Monotonic);
+    let mut thread_sched : ThreadScheduler = ThreadScheduler::new(Policy::Monotonic);
 
     thread_sched.add_task(Task::new(6, Priority::Low));  
     thread_sched.add_task(Task::new(10, Priority::Low));
     thread_sched.add_task(Task::new(20, Priority::Medium));   
     thread_sched.add_task(Task::new(4, Priority::Medium));  
     thread_sched.add_task(Task::new(10, Priority::High));   
+
+    thread_sched.run();
 }
